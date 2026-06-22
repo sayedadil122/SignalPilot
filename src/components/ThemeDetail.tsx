@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { ProblemTheme, RecommendationType } from '../types';
-import { ArrowLeft, Check, Edit, ShieldAlert, Award, FileText } from 'lucide-react';
+import { ArrowLeft, Check, ClipboardCheck, Edit, FileText, HelpCircle, Layers, MessageSquare, ShieldAlert } from 'lucide-react';
 
 interface ThemeDetailProps {
   theme: ProblemTheme;
@@ -21,8 +21,8 @@ export const ThemeDetail: React.FC<ThemeDetailProps> = ({
   );
   const [tempReason, setTempReason] = useState(override ? override.reason : '');
 
-  const aiRec: RecommendationType = theme.opportunityScore >= 80 ? 'Build' : theme.opportunityScore >= 40 ? 'Validate' : 'Ignore';
-  const currentRec = override ? override.recommendation : aiRec;
+  const defaultRec: RecommendationType = theme.opportunityScore >= 80 ? 'Build' : theme.opportunityScore >= 40 ? 'Validate' : 'Ignore';
+  const currentRec = override ? override.recommendation : defaultRec;
 
   const handleSave = () => {
     onSaveOverride(tempRec, tempReason);
@@ -30,203 +30,177 @@ export const ThemeDetail: React.FC<ThemeDetailProps> = ({
   };
 
   const handleCancel = () => {
-    setTempRec(override ? override.recommendation : aiRec);
+    setTempRec(override ? override.recommendation : defaultRec);
     setTempReason(override ? override.reason : '');
     setShowOverrideForm(false);
   };
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-      {/* Back link */}
-      <button onClick={onBack} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', marginBottom: '24px' }}>
-        <ArrowLeft style={{ width: '16px', height: '16px' }} /> Back to Problem Themes
+    <div className="theme-document">
+      <button onClick={onBack} className="btn-secondary compact-button">
+        <ArrowLeft size={16} /> Back to problem themes
       </button>
 
-      {/* Header card details */}
-      <div className="analyzer-card" style={{ marginBottom: '32px' }}>
-        <span className="card-category">{theme.category}</span>
-        <h1 style={{ fontSize: '32px', fontWeight: 700, margin: '8px 0 16px', color: 'var(--text-dark)' }}>{theme.title}</h1>
-        
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
-          <span className="badge badge-primary">{theme.mentionCount} Mentions</span>
-          <span className="badge badge-slate">Confidence: {theme.confidenceScore}%</span>
-          <span className="badge badge-slate">Bias Risk: {theme.biasRisk}</span>
-          <span className={`badge ${theme.severity === 'High' ? 'badge-high' : theme.severity === 'Medium' ? 'badge-medium' : 'badge-low'}`}>
-            {theme.severity} Severity
-          </span>
-          <span className={`badge ${currentRec === 'Build' ? 'badge-indigo' : currentRec === 'Validate' ? 'badge-violet' : 'badge-slate'}`}>
-            Recommendation: {currentRec}
-          </span>
+      <header className="theme-doc-header">
+        <span className="eyebrow">{theme.category}</span>
+        <h1>{theme.title}</h1>
+        <p>{theme.summary}</p>
+        <div className="theme-doc-meta">
+          <span>{theme.mentionCount} mentions</span>
+          <span>{theme.confidenceScore}% confidence</span>
+          <span>{theme.biasRisk} bias risk</span>
+          <span>{theme.severity} severity</span>
+          <span>Recommended: {currentRec}</span>
         </div>
+      </header>
 
-        <p style={{ fontSize: '15px', color: 'var(--text-muted)', lineHeight: '1.6', margin: 0 }}>
-          {theme.summary}
-        </p>
-      </div>
-
-      {/* Deep details columns */}
-      <div className="detail-columns">
-        <div className="detail-box-group">
-          {/* Problem Statement Card */}
-          <div className="detail-info-card">
-            <span className="detail-label">Problem Statement</span>
-            <p className="detail-val">{theme.problemStatement}</p>
+      <section className="theme-doc-grid">
+        <article className="doc-section">
+          <div className="doc-section-title">
+            <FileText size={17} />
+            <span>Expressed Pain</span>
           </div>
+          <p>{theme.problemStatement}</p>
+        </article>
 
-          {/* Root Cause Card */}
-          <div className="detail-info-card">
-            <span className="detail-label">Root Cause Hypothesis</span>
-            <p className="detail-val">{theme.rootCause}</p>
+        <article className="doc-section">
+          <div className="doc-section-title">
+            <Layers size={17} />
+            <span>Possible Deeper Pain</span>
           </div>
+          <p>{theme.rootCause}</p>
+        </article>
 
-          {/* Why Users Care Card */}
-          <div className="detail-info-card">
-            <span className="detail-label">Why Users Care (Business Impact)</span>
-            <p className="detail-val">{theme.whyUsersCare}</p>
+        <article className="doc-section">
+          <div className="doc-section-title">
+            <ClipboardCheck size={17} />
+            <span>Evidence Strength</span>
           </div>
+          <p>{theme.whyUsersCare}</p>
+          <div className="evidence-meter">
+            <i style={{ width: `${theme.confidenceScore}%` }} />
+          </div>
+        </article>
 
-          {/* Supporting Review Quotes */}
-          <div>
-            <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-dark)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FileText style={{ width: '16px', height: '16px', color: 'var(--primary)' }} /> Customer Evidence Quotes
-            </h3>
-            <div className="quotes-container">
-              {theme.quotes.map((quote, idx) => (
-                <div key={idx} className={`quote-bubble platform-${quote.sourcePlatform.toLowerCase().replace(' ', '-')}`}>
-                  <p className="quote-text">“{quote.text}”</p>
-                  <div className="quote-meta">
-                    <span className="quote-source">
-                      <span className="badge badge-platform">{quote.sourcePlatform}</span>
-                      {quote.author && <span>{quote.author}</span>}
-                    </span>
-                    <span className={`badge ${quote.urgency === 'High' ? 'badge-high' : quote.urgency === 'Medium' ? 'badge-medium' : 'badge-low'}`}>
-                      {quote.urgency} Urgency
-                    </span>
-                  </div>
+        <article className="doc-section">
+          <div className="doc-section-title">
+            <ShieldAlert size={17} />
+            <span>Bias Risk</span>
+          </div>
+          <p>{theme.biasRisk} risk. Validate whether this pattern appears beyond the loudest source or segment.</p>
+        </article>
+
+        <article className="doc-section">
+          <div className="doc-section-title">
+            <HelpCircle size={17} />
+            <span>Validation Needed</span>
+          </div>
+          <p>{theme.competitorGap}</p>
+        </article>
+
+        <article className="doc-section">
+          <div className="doc-section-title">
+            <ClipboardCheck size={17} />
+            <span>Recommended PM Action</span>
+          </div>
+          <p>{theme.productOpportunity}</p>
+          <strong>{theme.suggestedFeature}</strong>
+        </article>
+      </section>
+
+      <section className="theme-doc-lower">
+        <div className="supporting-quotes-panel">
+          <div className="section-heading tight">
+            <h2>Supporting Quotes</h2>
+            <p>Raw evidence that can be shown in a product review meeting.</p>
+          </div>
+          <div className="quotes-container">
+            {theme.quotes.map((quote, idx) => (
+              <div key={idx} className={`quote-bubble platform-${quote.sourcePlatform.toLowerCase().replace(' ', '-')}`}>
+                <div className="quote-heading">
+                  <MessageSquare size={15} />
+                  <span>{quote.sourcePlatform}</span>
+                  {quote.author && <span>{quote.author}</span>}
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Strategy Column */}
-        <div className="detail-box-group">
-          {/* Competitor Gap Card */}
-          <div className="strategy-card gap">
-            <span className="detail-label" style={{ color: 'var(--warning-text)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <ShieldAlert style={{ width: '14px', height: '14px' }} /> Competitor Gap
-            </span>
-            <p className="detail-val" style={{ marginTop: '8px' }}>{theme.competitorGap}</p>
-          </div>
-
-          {/* Product Opportunity Card */}
-          <div className="strategy-card opportunity">
-            <span className="detail-label" style={{ color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Award style={{ width: '14px', height: '14px' }} /> Product Opportunity
-            </span>
-            <p className="detail-val" style={{ marginTop: '8px', fontWeight: 600 }}>{theme.productOpportunity}</p>
-          </div>
-
-          {/* Suggested Feature */}
-          <div className="detail-info-card">
-            <span className="detail-label">Suggested MVP Feature Idea</span>
-            <p className="detail-val" style={{ fontWeight: 600, color: 'var(--primary)' }}>{theme.suggestedFeature}</p>
-          </div>
-
-          {/* PM Recommendation Overrides Section */}
-          <div className="sidebar-widget" style={{ padding: '20px' }}>
-            <span className="widget-title">Recommendation Audit</span>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>AI Default Recommendation</div>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-dark)', marginTop: '4px' }}>
-                  {aiRec} (Opp Score: {theme.opportunityScore}%)
-                </div>
-              </div>
-
-              <div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Current Strategic Action</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                  <span className={`badge ${currentRec === 'Build' ? 'badge-indigo' : currentRec === 'Validate' ? 'badge-violet' : 'badge-slate'}`}>
-                    {currentRec}
+                <p className="quote-text">"{quote.text}"</p>
+                <div className="quote-meta">
+                  <span className={`badge ${quote.urgency === 'High' ? 'badge-high' : quote.urgency === 'Medium' ? 'badge-medium' : 'badge-low'}`}>
+                    {quote.urgency} urgency
                   </span>
-                  {override && <span style={{ fontSize: '11px', color: 'var(--accent)', fontWeight: 600 }}>Overridden by PM</span>}
+                  <span>{quote.sentiment} sentiment</span>
                 </div>
               </div>
-
-              {override && (
-                <div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Override Rationale</div>
-                  <p style={{ fontSize: '13px', color: 'var(--text-dark)', margin: '4px 0 0', fontStyle: 'italic', background: '#f8fafc', padding: '8px', borderRadius: '6px' }}>
-                    “{override.reason}”
-                  </p>
-                </div>
-              )}
-
-              {!showOverrideForm ? (
-                <button
-                  className="btn-secondary"
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', fontSize: '13px', padding: '10px' }}
-                  onClick={() => setShowOverrideForm(true)}
-                  id="override-recommendation-btn"
-                >
-                  <Edit style={{ width: '14px', height: '14px' }} /> Override Action
-                </button>
-              ) : (
-                <div className="override-container">
-                  <span className="override-header">PM Decision Log</span>
-                  
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text)' }}>Select Recommendation</label>
-                    <select
-                      className="sort-select"
-                      value={tempRec}
-                      onChange={(e) => setTempRec(e.target.value as RecommendationType)}
-                      style={{ padding: '6px', fontSize: '12.5px' }}
-                      id="override-rec-select"
-                    >
-                      <option value="Build">Build (High Priority MVP)</option>
-                      <option value="Validate">Validate (Conduct Research)</option>
-                      <option value="Ignore">Ignore (Noise/Low Impact)</option>
-                    </select>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text)' }}>Rationale Reason</label>
-                    <textarea
-                      className="override-textarea"
-                      placeholder="Why are you changing this decision? E.g., Sales validated this is a major churn driver..."
-                      value={tempReason}
-                      onChange={(e) => setTempReason(e.target.value)}
-                      rows={3}
-                      id="override-reason-textarea"
-                    />
-                  </div>
-
-                  <div className="override-buttons">
-                    <button
-                      className="btn-secondary"
-                      style={{ padding: '6px 12px', fontSize: '12px' }}
-                      onClick={handleCancel}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      className="btn-primary"
-                      style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                      onClick={handleSave}
-                      id="confirm-override-btn"
-                    >
-                      <Check style={{ width: '12px', height: '12px' }} /> Save
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            ))}
           </div>
         </div>
-      </div>
+
+        <aside className="recommendation-panel">
+          <div className="section-heading tight">
+            <h2>Decision Log</h2>
+            <p>Keep human judgment visible next to the automated recommendation.</p>
+          </div>
+
+          <div className="decision-log-row">
+            <span>Default recommendation</span>
+            <strong>{defaultRec}</strong>
+          </div>
+          <div className="decision-log-row">
+            <span>Current action</span>
+            <strong>{currentRec}</strong>
+          </div>
+          <div className="decision-log-row">
+            <span>Opportunity score</span>
+            <strong>{theme.opportunityScore}%</strong>
+          </div>
+
+          {override && (
+            <div className="override-note">
+              <span>PM rationale</span>
+              <p>"{override.reason}"</p>
+            </div>
+          )}
+
+          {!showOverrideForm ? (
+            <button className="btn-secondary compact-button full-width" onClick={() => setShowOverrideForm(true)} id="override-recommendation-btn">
+              <Edit size={14} /> Override action
+            </button>
+          ) : (
+            <div className="override-container">
+              <span className="override-header">PM Decision Log</span>
+              <label>
+                <span>Recommendation</span>
+                <select
+                  className="sort-select"
+                  value={tempRec}
+                  onChange={(e) => setTempRec(e.target.value as RecommendationType)}
+                  id="override-rec-select"
+                >
+                  <option value="Build">Build</option>
+                  <option value="Validate">Validate</option>
+                  <option value="Ignore">Ignore</option>
+                </select>
+              </label>
+              <label>
+                <span>Rationale</span>
+                <textarea
+                  className="override-textarea"
+                  placeholder="Why are you changing this decision?"
+                  value={tempReason}
+                  onChange={(e) => setTempReason(e.target.value)}
+                  rows={4}
+                  id="override-reason-textarea"
+                />
+              </label>
+              <div className="override-buttons">
+                <button className="btn-secondary compact-button" onClick={handleCancel}>Cancel</button>
+                <button className="btn-primary compact-button" onClick={handleSave} id="confirm-override-btn">
+                  <Check size={12} /> Save
+                </button>
+              </div>
+            </div>
+          )}
+        </aside>
+      </section>
     </div>
   );
 };

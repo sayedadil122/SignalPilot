@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Lock, Mail, User, Zap } from 'lucide-react';
+import { BarChart3, Eye, EyeOff, FileText, Lock, Mail, ShieldAlert, User } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 type AuthMode = 'login' | 'signup';
@@ -37,7 +37,7 @@ export const AuthScreen: React.FC = () => {
         });
 
         if (signUpError) throw signUpError;
-        setMessage('Account created. Logging you in...');
+        setMessage('Account created. Opening your workspace...');
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email: normalizedEmail,
@@ -60,35 +60,56 @@ export const AuthScreen: React.FC = () => {
           <div className="auth-logo">SP</div>
           <span>SignalPilot</span>
         </div>
-        <h1>Customer signal intelligence for faster product decisions</h1>
-        <p>
-          Turn reviews, support notes, and competitor complaints into problem themes, opportunity scores,
-          and evidence packs your team can act on.
-        </p>
+
+        <div className="auth-copy">
+          <span className="eyebrow">Product Discovery Intelligence</span>
+          <h1>Turn noisy feedback into confident product decisions</h1>
+          <p>
+            Analyze reviews, support tickets, competitor complaints, and market signals to find evidence
+            quality, bias risk, and validation-ready product opportunities.
+          </p>
+        </div>
+
         <div className="auth-proof-grid" aria-label="SignalPilot highlights">
           <div>
-            <strong>8+</strong>
-            <span>Review sources</span>
+            <FileText size={18} />
+            <strong>8+ Review Sources</strong>
+            <span>Public and internal signal intake.</span>
           </div>
           <div>
-            <strong>AI</strong>
-            <span>Theme clustering</span>
+            <ShieldAlert size={18} />
+            <strong>Bias Risk Detection</strong>
+            <span>Separate signal from loud segments.</span>
           </div>
           <div>
-            <strong>Live</strong>
-            <span>Saved dashboards</span>
+            <BarChart3 size={18} />
+            <strong>Evidence Packs</strong>
+            <span>Decision-ready PM artifacts.</span>
           </div>
+        </div>
+
+        <div className="auth-preview" aria-hidden="true">
+          <div className="auth-preview-header">
+            <span>Decision review</span>
+            <strong>84% confidence</strong>
+          </div>
+          <div className="auth-preview-row">
+            <span>Evidence strength</span>
+            <div><i style={{ width: '82%' }} /></div>
+          </div>
+          <div className="auth-preview-row">
+            <span>Bias risk</span>
+            <div><i className="amber" style={{ width: '38%' }} /></div>
+          </div>
+          <div className="auth-preview-note">Recommended next action: validate with enterprise accounts.</div>
         </div>
       </section>
 
       <section className="auth-panel" aria-label={isSignup ? 'Create account' : 'Log in'}>
         <div className="auth-panel-header">
-          <div className="auth-panel-icon">
-            <Zap size={18} />
-          </div>
           <div>
             <h2>{isSignup ? 'Create your workspace' : 'Welcome back'}</h2>
-            <p>{isSignup ? 'Start tracking customer pain in minutes.' : 'Log in to open your dashboard.'}</p>
+            <p>{isSignup ? 'Start a product intelligence workspace.' : 'Log in to continue your analysis.'}</p>
           </div>
         </div>
 

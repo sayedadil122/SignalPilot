@@ -11,7 +11,7 @@ import {
   Cell,
 } from 'recharts';
 import type { CompetitorAnalysisResult } from '../types';
-import { ArrowUpRight, AlertCircle, Wrench, EyeOff } from 'lucide-react';
+import { AlertCircle, ArrowRight, ArrowUpRight, ClipboardCheck, EyeOff, FileText, Route } from 'lucide-react';
 
 interface DashboardProps {
   result: CompetitorAnalysisResult;
@@ -19,222 +19,195 @@ interface DashboardProps {
   setSelectedThemeId: (id: string | null) => void;
 }
 
+const COLORS = {
+  primary: '#2563eb',
+  accent: '#7c3aed',
+  success: '#059669',
+  warning: '#d97706',
+  danger: '#dc2626',
+  neutral: '#94a3b8',
+};
+
 export const Dashboard: React.FC<DashboardProps> = ({
   result,
   setActiveTab,
   setSelectedThemeId,
 }) => {
-  // Chart Colors (Premium B2B SaaS palette)
-  const COLORS = {
-    primary: '#4f46e5', // Indigo
-    accent: '#7c3aed', // Violet
-    teal: '#0d9488',
-    success: '#059669', // Emerald
-    warning: '#d97706', // Amber
-    danger: '#dc2626', // Red
-    neutral: '#94a3b8', // Slate-400
-  };
+  const company = result.themes[0]?.id.startsWith('pb')
+    ? 'Productboard'
+    : result.themes[0]?.id.startsWith('zom')
+    ? 'Zomato'
+    : 'Canny';
 
-  const platformChartData = result.platformsCovered.map((platform, idx) => {
-    const percentages = [60, 25, 15]; // Mock breakdown ratios
-    return { name: platform, value: Math.round((result.totalReviews * (percentages[idx] || 10)) / 100) };
-  });
+  const primaryTheme = result.themes[0];
+  const validationTheme = result.themes[1] ?? result.themes[0];
 
   const complaintChartData = result.themes.map((theme) => ({
-    name: theme.title.length > 25 ? `${theme.title.substring(0, 22)}...` : theme.title,
+    name: theme.title.length > 28 ? `${theme.title.substring(0, 25)}...` : theme.title,
     mentions: theme.mentionCount,
   }));
 
   const sentimentData = [
-    { name: 'Positive Reviews', value: result.positiveSignalsCount, color: COLORS.success },
-    { name: 'Negative Reviews', value: Math.round(result.totalReviews * 0.45), color: COLORS.danger },
-    { name: 'Neutral Reviews', value: Math.round(result.totalReviews * 0.15), color: COLORS.neutral },
+    { name: 'Positive', value: result.positiveSignalsCount, color: COLORS.success },
+    { name: 'Negative', value: Math.round(result.totalReviews * 0.45), color: COLORS.danger },
+    { name: 'Neutral', value: Math.round(result.totalReviews * 0.15), color: COLORS.neutral },
   ];
 
-  const severityData = [
-    { name: 'High Severity', value: result.highSeverityCount, color: COLORS.danger },
-    { name: 'Medium Severity', value: result.themes.filter(t => t.severity === 'Medium').length * 10, color: COLORS.warning },
-    { name: 'Low Severity', value: result.themes.filter(t => t.severity === 'Low').length * 15, color: COLORS.success },
+  const decisionCards = [
+    {
+      label: 'What needs attention now',
+      title: result.opportunities[0]?.title ?? primaryTheme?.title ?? 'Review top opportunity',
+      body: 'Strong enough evidence to discuss as a build candidate or attach to a planning doc.',
+      action: 'Review opportunity',
+      icon: ClipboardCheck,
+      tone: 'success',
+      onClick: () => setActiveTab('opportunities'),
+    },
+    {
+      label: 'What needs validation',
+      title: validationTheme?.title ?? 'Validate unclear demand',
+      body: 'The signal is meaningful, but the root cause needs customer or telemetry validation.',
+      action: 'Open theme detail',
+      icon: AlertCircle,
+      tone: 'warning',
+      onClick: () => {
+        setSelectedThemeId(validationTheme?.id ?? null);
+        setActiveTab('themes');
+      },
+    },
+    {
+      label: 'What looks like noise',
+      title: 'Requests with segment bias',
+      body: 'Treat high-volume but low-confidence themes as noise until another source confirms them.',
+      action: 'View themes',
+      icon: EyeOff,
+      tone: 'neutral',
+      onClick: () => setActiveTab('themes'),
+    },
+    {
+      label: 'What can become an evidence pack',
+      title: result.opportunities[1]?.title ?? 'Create stakeholder-ready evidence',
+      body: 'Bundle quotes, problem framing, and recommended next action for product review.',
+      action: 'Open evidence packs',
+      icon: FileText,
+      tone: 'primary',
+      onClick: () => setActiveTab('evidence'),
+    },
   ];
-
-  const handleThemeClick = (themeId: string) => {
-    setSelectedThemeId(themeId);
-    setActiveTab('themes');
-  };
-
-  const handleActionClick = (targetTab: string) => {
-    setActiveTab(targetTab);
-  };
 
   return (
-    <div>
-      {/* Header section */}
-      <div className="dashboard-header">
+    <div className="decision-dashboard">
+      <header className="dashboard-header decision-header">
         <div className="dashboard-title-group">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span className="badge badge-primary">{result.platform} Review Stream</span>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Analyzed just now</span>
-          </div>
-          <h1 style={{ marginTop: '8px' }}>
-            Analysis Dashboard: {result.themes[0]?.id.startsWith('pb') ? 'Productboard' : result.themes[0]?.id.startsWith('zom') ? 'Zomato' : 'Canny'}
-          </h1>
+          <span className="eyebrow">{result.platform} review stream</span>
+          <h1>{company} decision workspace</h1>
+          <p className="dashboard-subtitle">
+            Evidence-backed hypotheses, validation needs, and recommended PM actions from {result.totalReviews} feedback signals.
+          </p>
           <a href={result.url} target="_blank" rel="noopener noreferrer" className="url-badge">
             {result.url}
-            <ArrowUpRight style={{ width: '12px', height: '12px' }} />
+            <ArrowUpRight size={12} />
           </a>
         </div>
-        
+
         <button className="btn-secondary" onClick={() => setActiveTab('analyzer')} id="new-analysis-btn">
-          Analyze Another Competitor
+          Analyze another source
         </button>
-      </div>
+      </header>
 
-      {/* KPI Cards Grid (6 specific cards) */}
-      <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(6, 1fr)' }}>
+      <section className="kpi-grid decision-kpis">
         <div className="kpi-card">
-          <span className="kpi-label">Reviews Analyzed</span>
+          <span className="kpi-label">Signal volume</span>
           <span className="kpi-value">{result.totalReviews}</span>
+          <span className="kpi-sub">Reviews analyzed</span>
         </div>
         <div className="kpi-card">
-          <span className="kpi-label">Sources Covered</span>
-          <span className="kpi-value">{result.platformsCovered.length}</span>
-        </div>
-        <div className="kpi-card">
-          <span className="kpi-label">Pain Themes Found</span>
+          <span className="kpi-label">Decision themes</span>
           <span className="kpi-value">{result.topComplaintsCount}</span>
+          <span className="kpi-sub">Pain clusters found</span>
         </div>
         <div className="kpi-card">
-          <span className="kpi-label">High-Severity Issues</span>
+          <span className="kpi-label">Validation load</span>
           <span className="kpi-value">{result.highSeverityCount}</span>
+          <span className="kpi-sub">High-severity items</span>
         </div>
         <div className="kpi-card">
-          <span className="kpi-label">Opportunities Found</span>
+          <span className="kpi-label">PM actions</span>
           <span className="kpi-value">{result.opportunityThemesCount}</span>
+          <span className="kpi-sub">Opportunities ready</span>
         </div>
-        <div className="kpi-card">
-          <span className="kpi-label">Evidence Packs</span>
-          <span className="kpi-value">2</span>
-        </div>
-      </div>
+      </section>
 
-      {/* What needs PM attention now? */}
-      <div style={{ marginBottom: '32px' }}>
-        <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-dark)', marginBottom: '16px' }}>What needs PM attention now?</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' }}>
-          
-          <div style={{ background: '#f8fafc', borderRadius: '12px', padding: '20px', border: '1px solid #cbd5e1', borderTop: `4px solid ${COLORS.success}` }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: COLORS.success, marginBottom: '12px', fontWeight: 700, fontSize: '15px' }}>
-              <Wrench style={{ width: '18px', height: '18px' }} /> Build Candidate
-            </div>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-dark)', marginBottom: '6px' }}>{result.opportunities[0]?.title || 'Auto-tagging UI'}</div>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: '16px' }}>
-              Clear competitor gap found with high confidence. MVP feature would capture unhappy {result.themes[0]?.id.startsWith('pb') ? 'Productboard' : 'Canny'} users.
-            </p>
-            <button className="btn-secondary" style={{ width: '100%', fontSize: '13px' }} onClick={() => handleActionClick('opportunities')}>Review Opportunity</button>
+      <section className="decision-card-grid">
+        {decisionCards.map((card) => {
+          const Icon = card.icon;
+          return (
+            <article className={`decision-card tone-${card.tone}`} key={card.label}>
+              <div className="decision-card-top">
+                <Icon size={18} />
+                <span>{card.label}</span>
+              </div>
+              <h3>{card.title}</h3>
+              <p>{card.body}</p>
+              <button type="button" className="text-action" onClick={card.onClick}>
+                {card.action}
+                <ArrowRight size={15} />
+              </button>
+            </article>
+          );
+        })}
+      </section>
+
+      <section className="dashboard-grid decision-support-grid">
+        <div className="chart-card decision-chart-card">
+          <div className="chart-title">
+            <span>Theme evidence by mention count</span>
+            <small>Supports prioritization</small>
           </div>
-
-          <div style={{ background: '#f8fafc', borderRadius: '12px', padding: '20px', border: '1px solid #cbd5e1', borderTop: `4px solid ${COLORS.warning}` }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: COLORS.warning, marginBottom: '12px', fontWeight: 700, fontSize: '15px' }}>
-              <AlertCircle style={{ width: '18px', height: '18px' }} /> Investigate
-            </div>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-dark)', marginBottom: '6px' }}>{result.themes[1]?.title || 'Payment failures'}</div>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: '16px' }}>
-              Rising mention volume (+45% MoM), but root cause is unclear. Needs deeper cross-referencing with telemetry data.
-            </p>
-            <button className="btn-secondary" style={{ width: '100%', fontSize: '13px' }} onClick={() => handleThemeClick(result.themes[1]?.id || '')}>Deep Dive Theme</button>
-          </div>
-
-          <div style={{ background: '#f8fafc', borderRadius: '12px', padding: '20px', border: '1px solid #cbd5e1', borderTop: `4px solid ${COLORS.neutral}` }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: COLORS.neutral, marginBottom: '12px', fontWeight: 700, fontSize: '15px' }}>
-              <EyeOff style={{ width: '18px', height: '18px' }} /> Ignore for now
-            </div>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-dark)', marginBottom: '6px' }}>Dark Mode Requests</div>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: '16px' }}>
-              High bias risk. Overrepresented on Reddit, low business impact, and zero mentions in enterprise sales calls.
-            </p>
-            <button className="btn-secondary" style={{ width: '100%', fontSize: '13px' }} onClick={() => handleActionClick('themes')}>View All Themes</button>
-          </div>
-
-        </div>
-      </div>
-
-      {/* Visual Analytics Charts Grid */}
-      <div className="chart-grid">
-        <div className="chart-card">
-          <h3 className="chart-title">Complaints by Problem Theme <span>Mentions count</span></h3>
           <div className="chart-container">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart layout="vertical" data={complaintChartData} margin={{ left: 10, right: 20, top: 10, bottom: 10 }}>
                 <XAxis type="number" stroke="var(--text-muted)" fontSize={11} />
-                <YAxis dataKey="name" type="category" stroke="var(--text-muted)" fontSize={11} width={130} />
+                <YAxis dataKey="name" type="category" stroke="var(--text-muted)" fontSize={11} width={150} />
                 <Tooltip contentStyle={{ fontSize: '12px', borderRadius: '8px' }} />
-                <Bar dataKey="mentions" fill={COLORS.primary} radius={[0, 4, 4, 0]} barSize={14} />
+                <Bar dataKey="mentions" fill={COLORS.primary} radius={[0, 6, 6, 0]} barSize={14} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="chart-card">
-          <h3 className="chart-title">Reviews by Platform <span>Volumetric share</span></h3>
-          <div className="chart-container">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={platformChartData} margin={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={11} />
-                <YAxis stroke="var(--text-muted)" fontSize={11} />
-                <Tooltip contentStyle={{ fontSize: '12px', borderRadius: '8px' }} />
-                <Bar dataKey="value" fill={COLORS.accent} radius={[4, 4, 0, 0]} barSize={36} />
-              </BarChart>
-            </ResponsiveContainer>
+        <div className="chart-card decision-summary-card">
+          <div className="chart-title">
+            <span>Signal quality mix</span>
+            <small>Context, not the decision</small>
           </div>
-        </div>
-
-        <div className="chart-card">
-          <h3 className="chart-title">Sentiment Breakdown <span>Overall feedback split</span></h3>
-          <div className="chart-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <ResponsiveContainer width="60%" height="100%">
+          <div className="chart-container decision-pie">
+            <ResponsiveContainer width="52%" height="100%">
               <PieChart>
-                <Pie data={sentimentData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={4} dataKey="value">
+                <Pie data={sentimentData} cx="50%" cy="50%" innerRadius={58} outerRadius={78} paddingAngle={4} dataKey="value">
                   {sentimentData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                 </Pie>
                 <Tooltip contentStyle={{ fontSize: '12px', borderRadius: '8px' }} />
               </PieChart>
             </ResponsiveContainer>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '40%', fontSize: '12px' }}>
-              {sentimentData.map((entry, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: entry.color }}></div>
-                  <span style={{ fontWeight: 600 }}>{entry.name}:</span>
-                  <span style={{ color: 'var(--text-muted)' }}>{entry.value}</span>
+            <div className="chart-legend">
+              {sentimentData.map((entry) => (
+                <div key={entry.name}>
+                  <i style={{ background: entry.color }} />
+                  <span>{entry.name}</span>
+                  <strong>{entry.value}</strong>
                 </div>
               ))}
             </div>
           </div>
         </div>
+      </section>
 
-        <div className="chart-card">
-          <h3 className="chart-title">Urgency & Severity <span>Theme impacts</span></h3>
-          <div className="chart-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <ResponsiveContainer width="60%" height="100%">
-              <PieChart>
-                <Pie data={severityData} cx="50%" cy="50%" innerRadius={0} outerRadius={75} dataKey="value">
-                  {severityData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                </Pie>
-                <Tooltip contentStyle={{ fontSize: '12px', borderRadius: '8px' }} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '40%', fontSize: '12px' }}>
-              {severityData.map((entry, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: entry.color }}></div>
-                  <span style={{ fontWeight: 600 }}>{entry.name}:</span>
-                  <span style={{ color: 'var(--text-muted)' }}>{entry.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
+      <section className="pm-action-strip">
+        <Route size={18} />
+        <span>Recommended next step</span>
+        <strong>Use the top two themes to draft validation questions before committing roadmap capacity.</strong>
+      </section>
     </div>
   );
 };
