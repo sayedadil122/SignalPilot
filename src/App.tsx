@@ -4,6 +4,7 @@ import { Toaster, toast } from 'sonner';
 import './App.css';
 import { Sidebar } from './components/Sidebar';
 import { AuthScreen } from './components/AuthScreen';
+import { PublicLanding } from './components/PublicLanding';
 import { UrlAnalyzer } from './components/UrlAnalyzer';
 import { AnalysisLoader } from './components/AnalysisLoader';
 import { Dashboard } from './components/Dashboard';
@@ -26,10 +27,15 @@ import { analyzeCompetitorUrl } from './utils/analysisEngine';
 import { signalPilotBackend } from './services/signalPilotBackend';
 import type { CompetitorAnalysisResult, PlatformType, SavedProject, RecommendationType, CrawlSchedule } from './types';
 
+type AuthMode = 'login' | 'signup';
+
 function App() {
   // Global State Router
   const [session, setSession] = useState<Session | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const [isDemoUser, setIsDemoUser] = useState(() => localStorage.getItem('signalpilot_demo_user') === 'true');
+  const [authModalMode, setAuthModalMode] = useState<AuthMode | null>(null);
+  const [showAccessModal, setShowAccessModal] = useState(false);
+  const [routePath, setRoutePath] = useState(() => window.location.pathname);
   const [activeTab, setActiveTab] = useState<string>('home');
   const [analyzingUrl, setAnalyzingUrl] = useState<string>('');
   const [selectedPlatform, setSelectedPlatform] = useState<PlatformType | 'Auto Detect'>('Auto Detect');
@@ -56,12 +62,10 @@ function App() {
       const { data } = await supabase.auth.getSession();
       if (!mounted) return;
       setSession(data.session);
-      setAuthLoading(false);
     };
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
-      setAuthLoading(false);
     });
 
     void loadSession();
@@ -71,6 +75,35 @@ function App() {
       authListener.subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (session) {
+      setAuthModalMode(null);
+      setShowAccessModal(false);
+      if (routePath === '/login' || routePath === '/signup') {
+        navigate('/app/home');
+      }
+    }
+  }, [session, routePath]);
+
+  useEffect(() => {
+    const handlePopState = () => setRoutePath(window.location.pathname);
+    window.addEventListener('popstate', handlePopState);
+
+    if (window.location.pathname === '/login') {
+      setAuthModalMode('login');
+    }
+    if (window.location.pathname === '/signup') {
+      setAuthModalMode('signup');
+    }
+
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const navigate = (path: string) => {
+    window.history.pushState({}, '', path);
+    setRoutePath(path);
+  };
   const [savedProjects, setSavedProjects] = useState<SavedProject[]>(() => {
     try {
       const storedProjects = localStorage.getItem('signalpilot_saved_projects');
@@ -184,45 +217,72 @@ function App() {
       }
     };
 
-    if (session) {
+    if (session && !isDemoUser) {
       void syncFromSupabase();
     }
 
     return () => {
       cancelled = true;
     };
-  }, [session]);
+  }, [session, isDemoUser]);
 
-  const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast.error(error.message);
+  const enterDemoMode = () => {
+    localStorage.setItem('signalpilot_demo_user', 'true');
+    setIsDemoUser(true);
+    setAuthModalMode(null);
+    setShowAccessModal(false);
+    navigate('/app/home');
+    setActiveTab('home');
+    toast.success('Demo workspace opened.');
+  };
+
+  const handleProtectedAction = () => {
+    if (session || isDemoUser) {
+      navigate('/app/home');
       return;
     }
+    setShowAccessModal(true);
+  };
 
+  const handleSignOut = async () => {
+    if (session) {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+    }
+
+    localStorage.removeItem('signalpilot_demo_user');
+    setIsDemoUser(false);
     setCurrentAnalysis(null);
     setActiveTab('home');
-    toast.success('Signed out.');
+    navigate('/');
+    toast.success(session ? 'Signed out.' : 'Demo ended.');
   };
 
   const handleSaveSchedule = (newSched: CrawlSchedule) => {
     const updated = [newSched, ...schedules];
     setSchedules(updated);
     localStorage.setItem('signalpilot_crawls_schedules', JSON.stringify(updated));
-    void signalPilotBackend.saveSchedule(newSched, session?.user.id).catch((error) => {
-      console.warn('Unable to save crawl schedule to Supabase.', error);
-      toast.error('Saved locally. Supabase schedule sync failed.');
-    });
+    if (session) {
+      void signalPilotBackend.saveSchedule(newSched, session.user.id).catch((error) => {
+        console.warn('Unable to save crawl schedule to Supabase.', error);
+        toast.error('Saved locally. Supabase schedule sync failed.');
+      });
+    }
   };
 
   const handleDeleteSchedule = (id: string) => {
     const updated = schedules.filter((s) => s.id !== id);
     setSchedules(updated);
     localStorage.setItem('signalpilot_crawls_schedules', JSON.stringify(updated));
-    void signalPilotBackend.deleteSchedule(id).catch((error) => {
-      console.warn('Unable to delete crawl schedule from Supabase.', error);
-      toast.error('Deleted locally. Supabase schedule sync failed.');
-    });
+    if (session) {
+      void signalPilotBackend.deleteSchedule(id).catch((error) => {
+        console.warn('Unable to delete crawl schedule from Supabase.', error);
+        toast.error('Deleted locally. Supabase schedule sync failed.');
+      });
+    }
     toast.success('Crawl schedule deleted.');
   };
 
@@ -233,7 +293,7 @@ function App() {
     const updatedSchedule = updated.find((s) => s.id === id);
     setSchedules(updated);
     localStorage.setItem('signalpilot_crawls_schedules', JSON.stringify(updated));
-    if (updatedSchedule) {
+    if (updatedSchedule && session) {
       void signalPilotBackend.updateScheduleStatus(id, updatedSchedule.status).catch((error) => {
         console.warn('Unable to update crawl schedule status in Supabase.', error);
         toast.error('Updated locally. Supabase schedule sync failed.');
@@ -293,10 +353,12 @@ function App() {
       const updated = [newProj, ...savedProjects];
       setSavedProjects(updated);
       localStorage.setItem('signalpilot_saved_projects', JSON.stringify(updated));
-      void signalPilotBackend.saveProject(newProj, session?.user.id).catch((error) => {
-        console.warn('Unable to save research project to Supabase.', error);
-        toast.error('Saved locally. Supabase project sync failed.');
-      });
+      if (session) {
+        void signalPilotBackend.saveProject(newProj, session.user.id).catch((error) => {
+          console.warn('Unable to save research project to Supabase.', error);
+          toast.error('Saved locally. Supabase project sync failed.');
+        });
+      }
     }
   };
 
@@ -319,6 +381,11 @@ function App() {
     } else {
       handleAnalyze('https://www.g2.com/products/productboard/reviews', 'G2');
     }
+  };
+
+  const handlePublicTryDemo = () => {
+    enterDemoMode();
+    setTimeout(() => handleTrySampleProject(), 0);
   };
 
   // Override handler
@@ -442,19 +509,70 @@ function App() {
     }
   };
 
-  if (authLoading) {
-    return (
-      <div className="auth-loading">
-        <div className="pulse-spinner" />
-      </div>
-    );
-  }
+  const hasAppAccess = !!session || isDemoUser;
 
-  if (!session) {
+  const authOverlay = authModalMode && (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="modal-auth-card">
+        <button
+          className="modal-close-btn"
+          type="button"
+          onClick={() => {
+            setAuthModalMode(null);
+            if (routePath === '/login' || routePath === '/signup') navigate('/');
+          }}
+        >
+          ×
+        </button>
+        <AuthScreen compact initialMode={authModalMode} />
+      </div>
+    </div>
+  );
+
+  const accessOverlay = (showAccessModal || (routePath.startsWith('/app') && !hasAppAccess)) && (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="access-modal">
+        <button
+          className="modal-close-btn"
+          type="button"
+          onClick={() => {
+            setShowAccessModal(false);
+            if (routePath.startsWith('/app') && !hasAppAccess) navigate('/');
+          }}
+        >
+          ×
+        </button>
+        <h2>Create an account to continue</h2>
+        <p>
+          Sign up to analyze feedback, save research projects, and generate evidence-backed product insights.
+        </p>
+        <div className="access-modal-actions">
+          <button className="btn-secondary" type="button" onClick={() => { setShowAccessModal(false); navigate('/login'); setAuthModalMode('login'); }}>
+            Login
+          </button>
+          <button className="btn-primary" type="button" onClick={() => { setShowAccessModal(false); navigate('/signup'); setAuthModalMode('signup'); }}>
+            Sign Up
+          </button>
+          <button className="btn-secondary" type="button" onClick={enterDemoMode}>
+            Continue with Demo
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (!routePath.startsWith('/app') || !hasAppAccess) {
     return (
       <>
         <Toaster position="top-right" />
-        <AuthScreen />
+        <PublicLanding
+          onLogin={() => { navigate('/login'); setAuthModalMode('login'); }}
+          onSignup={() => { navigate('/signup'); setAuthModalMode('signup'); }}
+          onTryDemo={handlePublicTryDemo}
+          onProtectedAction={handleProtectedAction}
+        />
+        {authOverlay}
+        {accessOverlay}
       </>
     );
   }
@@ -467,7 +585,7 @@ function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         hasAnalysis={!!currentAnalysis}
-        userEmail={session.user.email}
+        userEmail={session?.user.email ?? 'Demo workspace'}
         onSignOut={handleSignOut}
       />
 

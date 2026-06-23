@@ -4,8 +4,13 @@ import { supabase } from '../lib/supabase';
 
 type AuthMode = 'login' | 'signup';
 
-export const AuthScreen: React.FC = () => {
-  const [mode, setMode] = useState<AuthMode>('login');
+interface AuthScreenProps {
+  initialMode?: AuthMode;
+  compact?: boolean;
+}
+
+export const AuthScreen: React.FC<AuthScreenProps> = ({ initialMode = 'login', compact = false }) => {
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -52,6 +57,93 @@ export const AuthScreen: React.FC = () => {
       setSubmitting(false);
     }
   };
+
+  const authPanel = (
+    <section className="auth-panel" aria-label={isSignup ? 'Create account' : 'Log in'}>
+      <div className="auth-panel-header">
+        <div>
+          <h2>{isSignup ? 'Create your workspace' : 'Welcome back'}</h2>
+          <p>{isSignup ? 'Start a product intelligence workspace.' : 'Log in to continue your analysis.'}</p>
+        </div>
+      </div>
+
+      <div className="auth-tabs">
+        <button className={mode === 'login' ? 'active' : ''} type="button" onClick={() => setMode('login')}>
+          Login
+        </button>
+        <button className={mode === 'signup' ? 'active' : ''} type="button" onClick={() => setMode('signup')}>
+          Sign up
+        </button>
+      </div>
+
+      <form className="auth-form" onSubmit={handleSubmit}>
+        {isSignup && (
+          <label className="auth-field">
+            <span>Full name</span>
+            <div className="auth-input-wrap">
+              <User size={18} />
+              <input
+                value={fullName}
+                onChange={(event) => setFullName(event.target.value)}
+                placeholder="Adil Khan"
+                autoComplete="name"
+              />
+            </div>
+          </label>
+        )}
+
+        <label className="auth-field">
+          <span>Email</span>
+          <div className="auth-input-wrap">
+            <Mail size={18} />
+            <input
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              type="email"
+              placeholder="you@company.com"
+              autoComplete="email"
+              required
+            />
+          </div>
+        </label>
+
+        <label className="auth-field">
+          <span>Password</span>
+          <div className="auth-input-wrap">
+            <Lock size={18} />
+            <input
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Minimum 6 characters"
+              autoComplete={isSignup ? 'new-password' : 'current-password'}
+              minLength={6}
+              required
+            />
+            <button
+              className="auth-icon-button"
+              type="button"
+              onClick={() => setShowPassword((current) => !current)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+            </button>
+          </div>
+        </label>
+
+        {error && <div className="auth-alert error">{error}</div>}
+        {message && <div className="auth-alert success">{message}</div>}
+
+        <button className="auth-submit" type="submit" disabled={submitting}>
+          {submitting ? 'Please wait...' : isSignup ? 'Create account' : 'Login'}
+        </button>
+      </form>
+    </section>
+  );
+
+  if (compact) {
+    return authPanel;
+  }
 
   return (
     <main className="auth-shell">
@@ -105,86 +197,7 @@ export const AuthScreen: React.FC = () => {
         </div>
       </section>
 
-      <section className="auth-panel" aria-label={isSignup ? 'Create account' : 'Log in'}>
-        <div className="auth-panel-header">
-          <div>
-            <h2>{isSignup ? 'Create your workspace' : 'Welcome back'}</h2>
-            <p>{isSignup ? 'Start a product intelligence workspace.' : 'Log in to continue your analysis.'}</p>
-          </div>
-        </div>
-
-        <div className="auth-tabs">
-          <button className={mode === 'login' ? 'active' : ''} type="button" onClick={() => setMode('login')}>
-            Login
-          </button>
-          <button className={mode === 'signup' ? 'active' : ''} type="button" onClick={() => setMode('signup')}>
-            Sign up
-          </button>
-        </div>
-
-        <form className="auth-form" onSubmit={handleSubmit}>
-          {isSignup && (
-            <label className="auth-field">
-              <span>Full name</span>
-              <div className="auth-input-wrap">
-                <User size={18} />
-                <input
-                  value={fullName}
-                  onChange={(event) => setFullName(event.target.value)}
-                  placeholder="Adil Khan"
-                  autoComplete="name"
-                />
-              </div>
-            </label>
-          )}
-
-          <label className="auth-field">
-            <span>Email</span>
-            <div className="auth-input-wrap">
-              <Mail size={18} />
-              <input
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                type="email"
-                placeholder="you@company.com"
-                autoComplete="email"
-                required
-              />
-            </div>
-          </label>
-
-          <label className="auth-field">
-            <span>Password</span>
-            <div className="auth-input-wrap">
-              <Lock size={18} />
-              <input
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Minimum 6 characters"
-                autoComplete={isSignup ? 'new-password' : 'current-password'}
-                minLength={6}
-                required
-              />
-              <button
-                className="auth-icon-button"
-                type="button"
-                onClick={() => setShowPassword((current) => !current)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-              >
-                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-              </button>
-            </div>
-          </label>
-
-          {error && <div className="auth-alert error">{error}</div>}
-          {message && <div className="auth-alert success">{message}</div>}
-
-          <button className="auth-submit" type="submit" disabled={submitting}>
-            {submitting ? 'Please wait...' : isSignup ? 'Create account' : 'Login'}
-          </button>
-        </form>
-      </section>
+      {authPanel}
     </main>
   );
 };
